@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Focus, Maybe? - ADHD Task Manager</title>
+  <meta name="description" content="A task manager designed for people with ADHD - 3 task limit to help you focus">
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <script src="https://unpkg.com/react@17/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@17/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+  <script src="https://unpkg.com/lucide@0.263.1"></script>
+  <script src="https://unpkg.com/lucide-react@0.263.1"></script>
+</head>
+<body class="bg-gray-900">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+    const { Plus, X } = window.LucideReact;
+
+    const TaskCard = ({ task, onComplete, onDelete }) => {
+      const [timeLeft, setTimeLeft] = useState(task.duration);
+      const [showConfirm, setShowConfirm] = useState(false);
+      
+      useEffect(() => {
+        const timer = setInterval(() => {
+          setTimeLeft(prev => Math.max(0, prev - 1));
+        }, 1000);
+        
+        return () => clearInterval(timer);
+      }, []);
+      
+      const motivationalQuotes = [
+        "Maybe finish this one before starting another?",
+        "Your past self thought you could do this. Prove them right.",
+        "Still here? Impressive."
+      ];
+      
+      const formatTime = (seconds) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+      };
+      
+      const getQuote = () => {
+        return motivationalQuotes[task.id % motivationalQuotes.length];
+      };
+      
+      const cardColors = [
+        "bg-purple-600",
+        "bg-pink-600",
+        "bg-blue-600",
+        "bg-green-600",
+        "bg-yellow-500"
+      ];
+      
+      const bgColor = cardColors[task.id % cardColors.length];
+      
+      return (
+        <div className={`p-6 rounded-xl shadow-lg mb-5 text-white ${bgColor} transform transition-transform hover:scale-105`}>
+          <div className="flex justify-between items-start">
+            <h3 className="text-xl font-bold mb-2">{task.title}</h3>
+            <button 
+              onClick={onDelete} 
+              className="text-white bg-black bg-opacity-20 p-1 rounded-full hover:bg-opacity-30 transition-all"
+            >
+              <X size={16} />
+            </button>
+          </div>
+          
+          <p className="mb-4">{task.description} <span className="text-lg ml-1">{task.id % 2 === 0 ? '📝' : '✅'}</span></p>
+          
+          <div className="flex items-center mb-4">
+            <span className="mr-2 text-lg">⏱️</span>
+            <span className="font-mono bg-black bg-opacity-40 px-4 py-2 rounded-lg text-xl font-bold tracking-wider">{formatTime(timeLeft)}</span>
+          </div>
+          
+          <p className="text-sm italic mb-4 font-medium">"{getQuote()}"</p>
+          
+          {!showConfirm ? (
+            <button 
+              onClick={() => setShowConfirm(true)}
+              className="w-full py-2 bg-white text-black font-bold rounded-lg hover:bg-opacity-90 transition shadow-lg"
+            >
+              Mark Complete
+            </button>
+          ) : (
+            <div className="bg-black bg-opacity-20 p-4 rounded-lg">
+              <p className="mb-2 font-medium">You sure? Or are you just pretending it's done?</p>
+              <div className="flex space-x-2">
+                <button 
+                  onClick={() => onComplete(task.id)}
+                  className="flex-1 py-2 bg-white text-black font-bold rounded-lg hover:bg-opacity-90 shadow-lg"
+                >
+                  Actually Done
+                </button>
+                <button 
+                  onClick={() => setShowConfirm(false)}
+                  className="flex-1 py-2 bg-black bg-opacity-30 text-white font-bold rounded-lg hover:bg-opacity-40"
+                >
+                  Not Really
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    const ADHDTodoApp = () => {
+      // Load saved tasks from localStorage if available
+      const savedTasks = localStorage.getItem('adhdTasks');
+      const initialTasks = savedTasks ? JSON.parse(savedTasks) : [];
+      
+      const [tasks, setTasks] = useState(initialTasks);
+      const [newTask, setNewTask] = useState({ title: '', description: '', duration: 1800 }); // Default 30 min
+      const [showAddForm, setShowAddForm] = useState(false);
+      
+      // Save tasks to localStorage whenever they change
+      useEffect(() => {
+        localStorage.setItem('adhdTasks', JSON.stringify(tasks));
+      }, [tasks]);
+      
+      const addTask = () => {
+        if (tasks.length >= 3) {
+          if (window.confirm("Really? You sure you want to add more than 3 tasks? We both know how that's going to end...")) {
+            alert("Nice try. Still no. We know your limits!");
+          }
+          return;
+        }
+        
+        if (newTask.title.trim() === '') {
+          alert("Your task needs a name. Focus!");
+          return;
+        }
+        
+        setTasks([...tasks, { ...newTask, id: Date.now() }]);
+        setNewTask({ title: '', description: '', duration: 1800 });
+        setShowAddForm(false);
+      };
+      
+      const completeTask = (taskId) => {
+        setTasks(tasks.filter(task => task.id !== taskId));
+      };
+      
+      const deleteTask = (taskId) => {
+        if (window.confirm("Giving up already?")) {
+          setTasks(tasks.filter(task => task.id !== taskId));
+        }
+      };
+      
+      return (
+        <div className="bg-gradient-to-b from-gray-900 to-gray-800 min-h-screen text-white">
+          <div className="max-w-md mx-auto p-6">
+            {/* Header Section */}
+            <header className="mb-8">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center">
+                  <div className="text-4xl mr-3">🧠</div>
+                  <div>
+                    <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-500">Focus, Maybe?</h1>
+                    <p className="text-gray-400">Your daily 3-task limit. You're welcome.</p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Stats Bar */}
+              <div className="bg-gray-800 p-4 rounded-xl shadow-inner mb-6 mt-4">
+                <div className="flex justify-between items-center">
+                  <div className="text-center">
+                    <p className="text-gray-400 text-sm">Tasks</p>
+                    <p className="text-2xl font-bold">{tasks.length}/3</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-gray-400 text-sm">Focus Level</p>
+                    <div className="flex items-center">
+                      {[...Array(5)].map((_, i) => (
+                        <div 
+                          key={i} 
+                          className={`w-2 h-6 mx-1 rounded-full ${i < 3 ? 'bg-blue-500' : 'bg-gray-600'}`}
+                        ></div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-gray-400 text-sm">Mood</p>
+                    <p className="text-2xl">🙃</p>
+                  </div>
+                </div>
+              </div>
+            </header>
+            
+            {/* Task List */}
+            <div className="space-y-5">
+              {tasks.map(task => (
+                <TaskCard 
+                  key={task.id} 
+                  task={task} 
+                  onComplete={completeTask} 
+                  onDelete={() => deleteTask(task.id)} 
+                />
+              ))}
+            </div>
+            
+            {/* Add Task Button */}
+            {tasks.length < 3 && !showAddForm && (
+              <button 
+                onClick={() => setShowAddForm(true)}
+                className="w-full mt-6 py-3 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center text-white bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 transition-all hover:-translate-y-1 shadow-lg font-bold"
+              >
+                <Plus size={20} className="mr-2" />
+                <span>Add Task ({tasks.length}/3)</span>
+              </button>
+            )}
+            
+            {/* Add Task Form */}
+            {showAddForm && (
+              <div className="border border-gray-700 rounded-lg p-5 mt-6 bg-gray-800 shadow-lg">
+                <h3 className="text-lg font-bold mb-4 text-blue-300">New Task</h3>
+                
+                <div className="mb-4">
+                  <label className="block text-sm font-medium mb-1 text-gray-300">Task Name</label>
+                  <input
+                    type="text"
+                    value={newTask.title}
+                    onChange={(e) => setNewTask({...newTask, title: e.target.value})}
+                    className="w-full p-3 border border-gray-600 rounded-md text-black bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="What needs doing?"
+                  />
+                </div>
+                
+                <div className="mb-4">
+                  <label className="block text-sm font-medium mb-1 text-gray-300">Description</label>
+                  <textarea
+                    value={newTask.description}
+                    onChange={(e) => setNewTask({...newTask, description: e.target.value})}
+                    className="w-full p-3 border border-gray-600 rounded-md text-black bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Details (if you can focus long enough to write them)"
+                    rows="2"
+                  ></textarea>
+                </div>
+                
+                <div className="mb-5">
+                  <label className="block text-sm font-medium mb-1 text-gray-300">Time Needed (minutes)</label>
+                  <div className="flex justify-between space-x-2">
+                    {[15, 25, 30, 60].map((mins) => (
+                      <button
+                        key={mins}
+                        onClick={() => setNewTask({...newTask, duration: mins * 60})}
+                        className={`flex-1 py-2 rounded-lg font-medium transition-colors ${
+                          newTask.duration === mins * 60 
+                            ? 'bg-blue-600 text-white' 
+                            : 'bg-gray-700 text-gray-300'
+                        }`}
+                      >
+                        {mins}m
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="flex space-x-3">
+                  <button 
+                    onClick={addTask}
+                    className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-500 shadow-lg transition-colors"
+                  >
+                    Add Task
+                  </button>
+                  <button 
+                    onClick={() => setShowAddForm(false)}
+                    className="py-3 px-4 bg-gray-700 text-white font-medium rounded-lg hover:bg-gray-600 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            {/* Empty State */}
+            {tasks.length === 0 && !showAddForm && (
+              <div className="text-center py-12 bg-gray-800 bg-opacity-50 rounded-xl mt-6">
+                <div className="text-5xl mb-3">🤔</div>
+                <p className="mb-2 text-gray-300">No tasks yet.</p>
+                <p className="font-medium text-blue-300">Is this productivity or procrastination?</p>
+              </div>
+            )}
+            
+            {/* Footer with Support Links */}
+            <footer className="mt-10 text-center text-gray-500 text-sm">
+              <p className="mb-4">Made by <a href="https://twitter.com/dadimdum" target="_blank" className="text-blue-400 hover:underline">@dadimdum</a>, a designer that had ADHD himself</p>
+              
+              <div className="flex space-x-3 mt-4 opacity-70">
+                <a 
+                  href="mailto:dadimdum@gmail.com"
+                  className="flex-1 py-2 bg-gray-700 text-white text-center text-sm rounded-lg hover:bg-gray-600 transition-all"
+                >
+                  Help 💬
+                </a>
+                <button 
+                  onClick={() => alert("Donate button coming soon!")}
+                  className="flex-1 py-2 bg-gray-700 text-white text-center text-sm rounded-lg hover:bg-gray-600 transition-all"
+                >
+                  Support 💖
+                </button>
+              </div>
+            </footer>
+          </div>
+        </div>
+      );
+    };
+
+    ReactDOM.render(<ADHDTodoApp />, document.getElementById('root'));
+  </script>
+</body>
+</html>
